@@ -55,4 +55,8 @@ https://github.com/RogueMemer/ceg3120-cicd-stein55-f26/blob/main/web-content/ind
 <img width="953" height="469" alt="Screenshot 2026-11-04 185325" src="https://github.com/user-attachments/assets/05bccbd0-fa34-4ae7-986b-da919d8c64a8" />
 <img width="1879" height="1671" alt="Screenshot_5-11-2026_113626_github com" src="https://github.com/user-attachments/assets/2d22c397-8a90-468a-9493-f86249d12450" />
 
+## Part 3
+
+<img width="956" height="472" alt="Screenshot 2026-11-05 165010" src="https://github.com/user-attachments/assets/8df00573-1789-4a6c-9de2-59d9702a7c00" />
+<img width="959" height="468" alt="Screenshot 2026-11-05 164514" src="https://github.com/user-attachments/assets/1d2ee9cb-0307-4cac-9181-9539c4e1ea3c" />
 

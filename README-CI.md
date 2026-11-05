@@ -57,6 +57,64 @@ https://github.com/RogueMemer/ceg3120-cicd-stein55-f26/blob/main/web-content/ind
 
 ## Part 3
 
+* To see tags in a git repository:
+`git tag`
+
+* To see details of a tag and the commit it points to:
+`git show v1.0.0`
+
+* To generate an annotated tag on the most recent commit:
+`git tag -a v1.0.0 -m "First release"`
+
+* To push a single tag to GitHub:
+`git push origin v1.0.0`
+
+* To push all local tags to GitHub:
+`git push origin --tags`
+
+* Tags follow semantic versioning (MAJOR.MINOR.PATCH). Releases created: v1.0.0, v1.1.0, v1.2.0, v1.3.0.
+
+### Semantic Versioning Container Images with GitHub Actions
+
+* The workflow triggers whenever a tag matching `v*.*.*` is pushed to the repository. Pushes to branches no longer trigger it.
+
+* Checkout repository. -> Login to DockerHub using secrets. -> Generate tags with `docker/metadata-action`. -> Set up Docker Buildx. -> Build and push image to DockerHub.
+
+* `docker/metadata-action` reads the pushed git tag and generates the image tags. For example, pushing `v1.3.0` produces `latest`, `1`, and `1.3`.
+
+* Values that would need to be updated in a different repository:
+  * Workflow: the `images:` value (`roguememer/aboutme-site`) must be changed to the new DockerHub username and repository name. The tag pattern in `on: push: tags:` can be changed if a different version format is used.
+  * Repository: the `DOCKER_USERNAME` and `DOCKER_TOKEN` secrets must be created in Settings -> Secrets and Variables -> Actions. A Dockerfile must exist in the repository, and the `context` path must match its location.
+
+* Workflow permalink:
+https://github.com/RogueMemer/ceg3120-cicd-stein55-f26/blob/main/.github/workflows/docker.yml
+
+### Testing & Validating
+
+* To test that the workflow did its tasking, I pushed a new tag (`git push origin v1.3.0`), opened the GitHub Actions tab, and verified that the run triggered by the tag completed with all steps green.
+
+* I then checked the Tags page on DockerHub to confirm `latest`, `1`, `1.0`, `1.1`, `1.2`, and `1.3` were present.
+
+* How to verify the DockerHub image is running:
+`docker pull roguememer/aboutme-site:1.0`
+`docker pull roguememer/aboutme-site:1.3`
+
+Run images:
+`docker run -d --rm --name site10 -p 8080:80 roguememer/aboutme-site:1.0`
+`docker run -d --rm --name site13 -p 8081:80 roguememer/aboutme-site:1.3`
+
+Open:
+http://127.0.0.1:8080 (1.0, shows `<:)>`)
+http://127.0.0.1:8081 (1.3, shows `<"We master all that lies before">`)
+
+Stop containers:
+`docker stop site10 site13`
+
+* Visible change between releases: `1.0` still serves the original site while `1.3` serves the updated text, which shows a new release does not overwrite the previous version and that rolling back to `1.0` is possible.
+
+* DockerHub Repository (tag set):
+https://hub.docker.com/r/roguememer/aboutme-site/tags
+
 <img width="956" height="472" alt="Screenshot 2026-11-05 165010" src="https://github.com/user-attachments/assets/8df00573-1789-4a6c-9de2-59d9702a7c00" />
 <img width="959" height="468" alt="Screenshot 2026-11-05 164514" src="https://github.com/user-attachments/assets/1d2ee9cb-0307-4cac-9181-9539c4e1ea3c" />
 

@@ -151,3 +151,10 @@ Local Repository
        v
     Website
 ```
+## Resources
+
+* Docker Documentation (https://docs.docker.com/) was used for Docker build, push, pull, and container management commands.
+
+* GitHub Actions Documentation (https://docs.github.com/actions) and Docker Metadata Action Documentation (https://github.com/docker/metadata-action) were used to configure the CI/CD workflow and semantic version image tagging.
+
+* Microsoft Copilot was used to help troubleshoot Docker container issues, GitHub Actions workflow errors, HTML formatting problems, and README organization throughout the project.

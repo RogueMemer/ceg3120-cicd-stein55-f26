@@ -117,4 +117,37 @@ https://hub.docker.com/r/roguememer/aboutme-site/tags
 
 <img width="956" height="472" alt="Screenshot 2026-11-05 165010" src="https://github.com/user-attachments/assets/8df00573-1789-4a6c-9de2-59d9702a7c00" />
 <img width="959" height="468" alt="Screenshot 2026-11-05 164514" src="https://github.com/user-attachments/assets/1d2ee9cb-0307-4cac-9181-9539c4e1ea3c" />
+# Part 4 - Project Overview and Diagram
 
+* The goal of this project was to create a website, containerize it using Docker, and automate building and publishing images to DockerHub using GitHub Actions. This allows changes pushed to GitHub to automatically build and publish updated container images.
+
+* Tools used in this project:
+  * GitHub - Stores the repository and source code.
+  * GitHub Actions - Automates building and pushing Docker images.
+  * Docker - Creates and runs containers.
+  * DockerHub - Stores Docker images and image versions.
+  * Apache HTTPD - Serves the website inside the container.
+
+* Project Diagram:
+
+```
+Local Repository
+       |
+       v
+     GitHub
+       |
+       v
+ GitHub Actions
+       |
+       v
+ Build Docker Image
+       |
+       v
+    DockerHub
+       |
+       v
+ Docker Container
+       |
+       v
+    Website
+```

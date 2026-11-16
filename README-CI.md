@@ -79,3 +79,5 @@ Website
 <img width="726" height="458" alt="Screenshot 2026-11-05 173908" src="https://github.com/user-attachments/assets/5525558a-cce5-4ad1-819f-f1365a7cf5c6" />
 
 I accidentally lost the OG rehub so this is the testing branch
+
+https://github.com/RogueMemer/ceg3120-cicd-stein55-f26/tree/main is the repo I'm using

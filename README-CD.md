@@ -1,5 +1,7 @@
 # README-CD
 
+# Part 1 - Script a Refresh
+
 ## EC2 Instance Details
 
 ### AMI Information
@@ -14,7 +16,7 @@ t2.micro
 ### Security Group Configuration
 
 | Port | Protocol | Source | Purpose |
-| ------ | ------ | ------ | ------ |
+|--------|----------|----------|----------|
 | 22 | TCP | Home IP /32 | SSH Access |
 | 22 | TCP | 130.108.0.0/16 | Wright State Access |
 | 80 | TCP | 0.0.0.0/0 | Web Traffic |
@@ -23,11 +25,11 @@ t2.micro
 
 ### Security Group Justification
 
-Port 22 is restricted to trusted networks for administration of the EC2 instance.
+Port 22 is restricted to trusted administrators.
 
-Port 80 is open to the public so users can access the deployed website.
+Port 80 is open so that users can access the deployed website.
 
-Port 9000 is reserved for GitHub webhook communication and testing of webhook functionality.
+Port 9000 is used by the webhook listener to receive GitHub webhook requests and allows testing from my home IP.
 
 ---
 
@@ -35,19 +37,12 @@ Port 9000 is reserved for GitHub webhook communication and testing of webhook fu
 
 ### Install Docker
 
-Update package lists:
-
 ```bash
 sudo apt update
-```
-
-Install Docker:
-
-```bash
 sudo apt install docker.io -y
 ```
 
-Enable Docker at startup:
+Enable Docker:
 
 ```bash
 sudo systemctl enable docker
@@ -60,9 +55,11 @@ Allow the ubuntu user to run Docker commands:
 sudo usermod -aG docker ubuntu
 ```
 
-### Verify Installation
+### Additional Dependencies
 
-Check Docker version:
+No additional dependencies were required beyond the Docker package provided by Ubuntu.
+
+### Verify Installation
 
 ```bash
 docker --version
@@ -101,8 +98,8 @@ docker run -d \
 docker run -it IMAGE_NAME
 ```
 
-- Interactive terminal session
-- Useful for troubleshooting and testing
+- Interactive mode
+- Used for testing and debugging
 - Stops when the terminal session ends
 
 #### -d
@@ -111,46 +108,203 @@ docker run -it IMAGE_NAME
 docker run -d IMAGE_NAME
 ```
 
-- Runs the container in detached mode
-- Continues running in the background
+- Detached mode
+- Runs in the background
 - Recommended for production deployments
 
-### Verify the Application
+### Verify the Web Application
 
-Verify the container is running:
+Check that the container is running:
 
 ```bash
 docker ps
 ```
 
-Verify the web page is being served:
+Verify that the web page is being served:
 
 ```bash
 curl localhost
 ```
 
-The application may also be viewed by visiting the EC2 instance's public IP address in a web browser.
+The application can also be viewed from the EC2 instance public IP address.
 
 ---
 
-## Configuring a Webhook Listener on EC2
+## Scripting Container Application Refresh
 
-- Installed webhook via apt
-- Verified installation using `webhook -version`
-- Created `deployment/hooks.json`
-- Configured GitHub signature validation using X-Hub-Signature-256
-- Verified hook loaded successfully using webhook verbose output
+### Description of the Bash Script
 
-Link:
+The deployment script:
+
+1. Stops the currently running container.
+2. Removes the old container.
+3. Pulls the latest image from Docker Hub.
+4. Starts a new container from the latest image.
+5. Runs the container in detached mode.
+6. Configures the container to restart automatically after reboots using `--restart always`.
+
+### Testing the Script
+
+Run:
+
+```bash
+./deployment/refresh.sh
+```
+
+Verify:
+
+```bash
+docker ps
+```
+
+Verify the website:
+
+```bash
+curl localhost
+```
+
+### Link to Bash Script
+
+```text
+deployment/refresh.sh
+```
+
+---
+
+# Part 2 - Listen
+
+## Configuring a Webhook Listener on EC2 Instance
+
+### Install Webhook
+
+```bash
+sudo apt update
+sudo apt install webhook -y
+```
+
+### Verify Installation
+
+```bash
+webhook -version
+```
+
+### Summary of the Webhook Definition File
+
+The file `deployment/hooks.json` defines a hook named `docker-refresh`.
+
+The hook:
+
+- Executes `refresh.sh`
+- Verifies GitHub requests using the `X-Hub-Signature-256` header
+- Uses a shared secret for validation
+- Triggers only when an image is ready to be pulled
+
+### Verify Definition File Loaded
+
+Start webhook:
+
+```bash
+webhook -hooks deployment/hooks.json -verbose -port 9000
+```
+
+A successful load displays:
+
+```text
+loaded: docker-refresh
+```
+
+### Verify Webhook Receives Payloads
+
+Monitor logs:
+
+```bash
+journalctl -u webhook -f
+```
+
+Webhook events will appear in the log output when payloads are received.
+
+### Monitoring Logs
+
+```bash
+journalctl -u webhook -f
+```
+
+### Docker Process Verification
+
+```bash
+docker ps
+```
+
+A successful webhook trigger should refresh the running container.
+
+### Link to Definition File
+
+```text
 deployment/hooks.json
+```
 
-## Configuring a Webhook Service on EC2
+---
 
-- Created systemd service file
-- Enabled service with `systemctl enable webhook`
-- Started service with `systemctl start webhook`
-- Verified with `systemctl status webhook`
-- Monitored logs with `journalctl -u webhook -f`
+## Configure a Webhook Service on EC2 Instance
 
-Link:
+### Summary of Service File
+
+The service file automatically starts webhook at system boot.
+
+The service:
+
+- Loads `deployment/hooks.json`
+- Listens on port 9000
+- Restarts automatically if it stops unexpectedly
+
+### Enable and Start Service
+
+Reload systemd:
+
+```bash
+sudo systemctl daemon-reload
+```
+
+Enable:
+
+```bash
+sudo systemctl enable webhook
+```
+
+Start:
+
+```bash
+sudo systemctl start webhook
+```
+
+### Verify Service Operation
+
+Check service status:
+
+```bash
+sudo systemctl status webhook
+```
+
+Expected output:
+
+```text
+Active: active (running)
+```
+
+Monitor logs:
+
+```bash
+journalctl -u webhook -f
+```
+
+Verify container activity:
+
+```bash
+docker ps
+```
+
+### Link to Service File
+
+```text
 deployment/webhook.service
+```

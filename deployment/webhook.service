@@ -1,0 +1,13 @@
+[Unit]
+Description=Webhook Listener
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/ceg3120-cicd-stein55-f26
+ExecStart=/usr/bin/webhook -hooks /home/ubuntu/ceg3120-cicd-stein55-f26/deployment/hooks.json -verbose -port 9000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

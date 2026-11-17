@@ -133,4 +133,24 @@ The application may also be viewed by visiting the EC2 instance's public IP addr
 
 ---
 
-## Scripting Container 
+## Configuring a Webhook Listener on EC2
+
+- Installed webhook via apt
+- Verified installation using `webhook -version`
+- Created `deployment/hooks.json`
+- Configured GitHub signature validation using X-Hub-Signature-256
+- Verified hook loaded successfully using webhook verbose output
+
+Link:
+deployment/hooks.json
+
+## Configuring a Webhook Service on EC2
+
+- Created systemd service file
+- Enabled service with `systemctl enable webhook`
+- Started service with `systemctl start webhook`
+- Verified with `systemctl status webhook`
+- Monitored logs with `journalctl -u webhook -f`
+
+Link:
+deployment/webhook.service

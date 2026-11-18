@@ -251,3 +251,11 @@ M --> N[Updated Website]
     * "create a deployment diagram"
 
     *Repository i used: https://github.com/RogueMemer/ceg3120-cicd-stein55-f26
+
+ ## The BIGGEST issue i had during this
+
+* GitHub successfully delivers workflow_run.completed payloads and receives a 200 response from the webhook listener.
+
+* The refresh script functions correctly and successfully deploys a new container when executed.
+
+* Additional testing would be required to verify automatic execution of the deployment script directly from the workflow_run.completed payload under all conditions.

@@ -1,454 +1,251 @@
-# README-CD
+# Continuous Deployment Project Documentation
 
-# Part 1 - Script a Refresh
+# Project Overview
 
-## EC2 Instance Details
+* The goal of this project was to build a Continuous Deployment pipeline that automatically deploys updated Docker containers to an AWS EC2 instance.
+* GitHub Actions builds a Docker image and pushes it to Docker Hub.
+* GitHub Webhooks send a payload when the workflow completes.
+* A webhook listener on the EC2 instance receives the payload.
+* The webhook listener executes a deployment script.
+* The deployment script pulls the newest image and refreshes the running container.
 
-### AMI Information
-Ubuntu Server 24.04 LTS
+## Deployment Diagram
 
-### Instance Type
-t2.micro
+```mermaid
+flowchart LR
 
-### Recommended Volume Size
-8 GB gp3 EBS Volume
+A[Code Push] --> B[GitHub Repository]
 
-### Security Group Configuration
+B --> C[GitHub Actions]
 
-| Port | Protocol | Source | Purpose |
-|--------|----------|----------|----------|
-| 22 | TCP | Home IP /32 | SSH Access |
-| 22 | TCP | 130.108.0.0/16 | Wright State Access |
-| 80 | TCP | 0.0.0.0/0 | Web Traffic |
-| 9000 | TCP | GitHub Webhook IPs | Webhook Access |
-| 9000 | TCP | Home IP /32 | Webhook Testing |
+C --> D[Build Docker Image]
 
-### Security Group Justification
+D --> E[Push Image to Docker Hub]
 
-Port 22 is restricted to trusted administrators.
+E --> F[workflow_run.completed]
 
-Port 80 is open so that users can access the deployed website.
+F --> G[GitHub Webhook]
 
-Port 9000 is used by the webhook listener to receive GitHub webhook requests and allows testing from my home IP.
+G --> H[EC2 Webhook Listener]
 
----
+H --> I[refresh.sh]
 
-## Docker Setup on the EC2 Instance
+I --> J[Stop Old Container]
 
-### Install Docker
+J --> K[Remove Old Container]
 
-```bash
-sudo apt update
-sudo apt install docker.io -y
+K --> L[Pull Latest Image]
+
+L --> M[Run New Container]
+
+M --> N[Updated Website]
 ```
 
-Enable Docker:
-
-```bash
-sudo systemctl enable docker
-sudo systemctl start docker
-```
-
-Allow the ubuntu user to run Docker commands:
-
-```bash
-sudo usermod -aG docker ubuntu
-```
-
-### Additional Dependencies
-
-No additional dependencies were required beyond the Docker package provided by Ubuntu.
-
-### Verify Installation
-
-```bash
-docker --version
-```
-
-Run a test container:
-
-```bash
-docker run hello-world
-```
-
----
-
-## Testing on the EC2 Instance
-
-### Pull Container Image from Docker Hub
-
-```bash
-docker pull roguememer/ceg3120-cicd-stein55-f26:latest
-```
-
-### Run Container from Image
-
-```bash
-docker run -d \
-  --name myapp \
-  -p 80:80 \
-  roguememer/ceg3120-cicd-stein55-f26:latest
-```
-
-### Difference Between -it and -d
-
-#### -it
-
-```bash
-docker run -it IMAGE_NAME
-```
-
-- Interactive mode
-- Used for testing and debugging
-- Stops when the terminal session ends
-
-#### -d
-
-```bash
-docker run -d IMAGE_NAME
-```
-
-- Detached mode
-- Runs in the background
-- Recommended for production deployments
-
-### Verify the Web Application
-
-Check that the container is running:
-
-```bash
-docker ps
-```
-
-Verify that the web page is being served:
-
-```bash
-curl localhost
-```
-
-The application can also be viewed from the EC2 instance public IP address.
-
----
-
-## Scripting Container Application Refresh
-
-### Description of the Bash Script
-
-The deployment script:
-
-1. Stops the currently running container.
-2. Removes the old container.
-3. Pulls the latest image from Docker Hub.
-4. Starts a new container from the latest image.
-5. Runs the container in detached mode.
-6. Configures the container to restart automatically after reboots using `--restart always`.
-
-### Testing the Script
-
-Run:
-
-```bash
-./deployment/refresh.sh
-```
-
-Verify:
-
-```bash
-docker ps
-```
-
-Verify the website:
-
-```bash
-curl localhost
-```
-
-### Link to Bash Script
-
-```text
-deployment/refresh.sh
-```
-
----
-
-# Part 2 - Listen
-
-## Configuring a Webhook Listener on EC2 Instance
-
-### Install Webhook
-
-```bash
-sudo apt update
-sudo apt install webhook -y
-```
-
-### Verify Installation
-
-```bash
-webhook -version
-```
-
-### Summary of the Webhook Definition File
-
-The file `deployment/hooks.json` defines a hook named `docker-refresh`.
-
-The hook:
-
-- Executes `refresh.sh`
-- Verifies GitHub requests using the `X-Hub-Signature-256` header
-- Uses a shared secret for validation
-- Triggers only when an image is ready to be pulled
-
-### Verify Definition File Loaded
-
-Start webhook:
-
-```bash
-webhook -hooks deployment/hooks.json -verbose -port 9000
-```
-
-A successful load displays:
-
-```text
-loaded: docker-refresh
-```
-
-### Verify Webhook Receives Payloads
-
-Monitor logs:
-
-```bash
-journalctl -u webhook -f
-```
-
-Webhook events will appear in the log output when payloads are received.
-
-### Monitoring Logs
-
-```bash
-journalctl -u webhook -f
-```
-
-### Docker Process Verification
-
-```bash
-docker ps
-```
-
-A successful webhook trigger should refresh the running container.
-
-### Link to Definition File
-
-```text
-deployment/hooks.json
-```
-
----
-
-## Configure a Webhook Service on EC2 Instance
-
-### Summary of Service File
-
-The service file automatically starts webhook at system boot.
-
-The service:
-
-- Loads `deployment/hooks.json`
-- Listens on port 9000
-- Restarts automatically if it stops unexpectedly
-
-### Enable and Start Service
-
-Reload systemd:
-
-```bash
-sudo systemctl daemon-reload
-```
-
-Enable:
-
-```bash
-sudo systemctl enable webhook
-```
-
-Start:
-
-```bash
-sudo systemctl start webhook
-```
-
-### Verify Service Operation
-
-Check service status:
-
-```bash
-sudo systemctl status webhook
-```
-
-Expected output:
-
-```text
-Active: active (running)
-```
-
-Monitor logs:
-
-```bash
-journalctl -u webhook -f
-```
-
-Verify container activity:
-
-```bash
-docker ps
-```
-
-### Link to Service File
-
-```text
-deployment/webhook.service
-```
-
-# Part 3 - Send a Payload
-
-## Configuring a GitHub Webhook
-
-### Enabling GitHub to Send Payloads
-
-A GitHub webhook was configured in the repository settings.
-
-Payload URL:
-
-```text
-http://100.55.188.60:9000/hooks/docker-refresh
-```
-
-Content Type:
-
-```text
-application/json
-```
-
-Secret:
-
-```text
-Same shared secret configured in deployment/hooks.json
-```
-
-### Selected Event
-
-Selected Event:
-
-```text
-Workflow Runs
-```
-
-The webhook is configured to trigger when a workflow run completes.
-
-The event payload contains:
-
-```json
-"action": "completed"
-```
-
-and
-
-```json
-"conclusion": "success"
-```
-
-### Why This Event Was Chosen
-
-I selected the Workflow Run event because it occurs after the GitHub Actions workflow has completed.
-
-My deployment process depends on the latest Docker image already existing in Docker Hub before the deployment server executes the refresh script.
-
-I did not choose the Push event because a push occurs immediately when code is pushed to GitHub and may happen before the Docker image has finished building and uploading to Docker Hub.
-
-Using Workflow Run Completed ensures that the deployment server pulls the newest available image.
-
-### Verifying Successful Payload Delivery
-
-Webhook deliveries can be viewed in:
-
-```text
-Repository Settings → Webhooks → Recent Deliveries
-```
-
-Successful delivery was verified using:
-
-```text
-Response: 200
-```
-
-indicating that GitHub successfully contacted the EC2 webhook listener.
-
-Webhook activity can also be monitored using:
-
-```bash
-journalctl -u webhook -f
-```
-
-### Validating Requests Come From GitHub
-
-The webhook listener validates incoming requests using:
-
-```text
-X-Hub-Signature-256
-```
-
-and a shared secret configured in:
-
-```text
-deployment/hooks.json
-```
-
-Requests that do not provide a valid signature fail validation and do not execute the deployment script.
-
-Testing with curl resulted in:
-
-```text
-Hook rules were not satisfied.
-```
-
-demonstrating that unauthorized requests do not trigger deployment actions.
-
----
-
-## GitHub Webhooks vs DockerHub Webhooks
-
-### Event Generation
-
-GitHub Webhooks send payloads when repository events occur.
-
-For this project, the selected event was:
-
-```text
-workflow_run.completed
-```
-
-which occurs after the GitHub Actions workflow finishes.
-
-DockerHub Webhooks send payloads when repository image events occur, such as image pushes.
-
-### Sender Verification
-
-GitHub Webhooks support validation using:
-
-```text
-X-Hub-Signature-256
-```
-
-and a shared secret.
-
-DockerHub Webhooks can notify external systems when images are updated, but GitHub provides stronger integration with GitHub Actions workflows.
-
-### Preferred Solution
-
-I would use GitHub Webhooks for this deployment because they integrate directly with the CI/CD pipeline and can be configured to trigger only after successful workflow completion.
-
-This ensures that deployments occur only after the latest image has been built and pushed to Docker Hub.
-
-# CEG3120 CI/CD Project
-
-This repository contains the work completed for the CEG 3120 Continuous Integration and Continuous Deployment project.
+* All major components are currently functioning.
+* GitHub Actions successfully builds images.
+* Docker Hub stores the latest image.
+* GitHub webhooks successfully deliver payloads.
+* The deployment script refreshes the running container automatically.
+
+# Part 1
+
+* EC2 Instance
+  * An EC2 instance is the virtual machine used to host the deployment server.
+  * Operating System: Ubuntu Server 24.04 LTS
+  * Instance Type: t2.micro
+  * Elastic IP: 100.55.188.60
+
+
+* Security Group
+  * Security groups act as the firewall for the EC2 instance.
+  * Port 22 is used for SSH.
+  * Port 80 is used for HTTP website traffic.
+  * Port 9000 is used for webhook traffic.
+
+* Docker Installation
+  * Docker was installed using:
+    ```bash
+    sudo apt update
+    sudo apt install docker.io -y
+    ```
+  * Docker was enabled using:
+    ```bash
+    sudo systemctl enable docker
+    sudo systemctl start docker
+    ```
+  * Docker access was granted to the ubuntu user.
+
+
+* Docker Image
+  * Docker Hub repository:
+    ```text
+    roguememer/ceg3120-cicd-stein55-f26
+    ```
+  * The image is pulled from Docker Hub before deployment.
+  * The container serves the web application on port 80.
+
+* Refresh Script
+  * File:
+    ```text
+    deployment/refresh.sh
+    ```
+  * The script:
+    * Stops the old container.
+    * Removes the old container.
+    * Pulls the newest image.
+    * Starts a new container.
+    * Uses automatic restart behavior.
+
+
+# Part 2
+
+* Webhook Listener
+  * Installed using:
+    ```bash
+    sudo apt install webhook -y
+    ```
+  * Verified with:
+    ```bash
+    webhook -version
+    ```
+  * The webhook listener waits for payloads on port 9000.
+
+* Hook Definition
+  * File:
+    ```text
+    deployment/hooks.json
+    ```
+  * The hook is called:
+    ```text
+    docker-refresh
+    ```
+  * The hook executes:
+    ```text
+    deployment/refresh.sh
+    ```
+  * Requests are verified using:
+    ```text
+    X-Hub-Signature-256
+    ```
+
+
+* Webhook Service
+  * File:
+    ```text
+    deployment/webhook.service
+    ```
+  * The service automatically starts webhook when the instance boots.
+  * Enabled using:
+    ```bash
+    sudo systemctl enable webhook
+    ```
+  * Started using:
+    ```bash
+    sudo systemctl start webhook
+    ```
+
+
+* Negative Test
+  * A test request was sent using:
+    ```bash
+    curl -X POST http://100.55.188.60:9000/hooks/docker-refresh
+    ```
+  * The response was:
+    ```text
+    Hook rules were not satisfied.
+    ```
+
+
+# Part 3
+
+* GitHub Webhook
+  * Payload URL:
+    ```text
+    http://100.55.188.60:9000/hooks/docker-refresh
+    ```
+  * Content Type:
+    ```text
+    application/json
+    ```
+  * The same secret was used in both GitHub and hooks.json.
+
+* Selected Event
+  * Selected Event:
+    ```text
+    workflow_run
+    ```
+  * Trigger:
+    ```text
+    workflow_run.completed
+    ```
+
+* Why I Chose This Event
+  * I selected workflow_run.completed because it happens after GitHub Actions finishes building and pushing the image to Docker Hub.
+  * I did not choose push because a push event happens before the image is finished building.
+  * This guarantees that the latest image already exists when the deployment script runs.
+
+* Payload Delivery
+  * GitHub delivered the payload successfully.
+  * Response:
+    ```text
+    200 OK
+    ```
+
+* GitHub Webhooks vs Docker Hub Webhooks
+  * GitHub Webhooks trigger from repository events.
+  * Docker Hub Webhooks trigger from image repository events.
+  * GitHub Webhooks support validation using X-Hub-Signature-256.
+  * I would choose GitHub Webhooks because they tie directly into the GitHub Actions workflow and allow signature validation before deployment occurs.
+
+# Part 4
+
+* End to End Deployment
+  * A code change is pushed to GitHub.
+  * GitHub Actions builds a Docker image.
+  * Docker Hub stores the image.
+  * GitHub sends a webhook payload.
+  * The EC2 webhook listener receives the payload.
+  * refresh.sh executes automatically.
+  * The old container is removed.
+  * The newest image is pulled.
+  * A new container is started.
+  * The website updates automatically.
+
+* This screenshot proves the website is running from the Docker container.
+  * ![website](images/site-running.png)
+
+* This screenshot proves a new container was created after deployment.
+  * ![end-to-end](images/end-to-end.png)
+
+# Sources
+
+* GitHub Documentation
+  * https://docs.github.com/en/webhooks
+  * Used for GitHub webhook setup.
+
+* GitHub Webhook Validation
+  * https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
+  * Used for signature verification research.
+
+* Docker Documentation
+  * https://docs.docker.com
+  * Used for deployment and container management research.
+
+* webhook
+  * https://github.com/adnanh/webhook
+  * Used for webhook listener configuration.
+
+* AI Usage
+  * Microsoft Copilot
+  * Used for:
+    * README formatting
+    * Bash script troubleshooting
+    * Webhook troubleshooting
+    * Docker deployment troubleshooting
+
+  * Example prompts:
+    * "could this README get a high grade?"
+    * "what screenshots should i take"
+    * "help me configure webhook"
+    * "why is GitHub webhook failing"
+    * "create a deployment diagram"

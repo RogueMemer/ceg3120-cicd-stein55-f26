@@ -308,3 +308,143 @@ docker ps
 ```text
 deployment/webhook.service
 ```
+
+# Part 3 - Send a Payload
+
+## Configuring a GitHub Webhook
+
+### Enabling GitHub to Send Payloads
+
+A GitHub webhook was configured in the repository settings.
+
+Payload URL:
+
+```text
+http://100.55.188.60:9000/hooks/docker-refresh
+```
+
+Content Type:
+
+```text
+application/json
+```
+
+Secret:
+
+```text
+Same shared secret configured in deployment/hooks.json
+```
+
+### Selected Event
+
+Selected Event:
+
+```text
+Workflow Runs
+```
+
+The webhook is configured to trigger when a workflow run completes.
+
+The event payload contains:
+
+```json
+"action": "completed"
+```
+
+and
+
+```json
+"conclusion": "success"
+```
+
+### Why This Event Was Chosen
+
+I selected the Workflow Run event because it occurs after the GitHub Actions workflow has completed.
+
+My deployment process depends on the latest Docker image already existing in Docker Hub before the deployment server executes the refresh script.
+
+I did not choose the Push event because a push occurs immediately when code is pushed to GitHub and may happen before the Docker image has finished building and uploading to Docker Hub.
+
+Using Workflow Run Completed ensures that the deployment server pulls the newest available image.
+
+### Verifying Successful Payload Delivery
+
+Webhook deliveries can be viewed in:
+
+```text
+Repository Settings → Webhooks → Recent Deliveries
+```
+
+Successful delivery was verified using:
+
+```text
+Response: 200
+```
+
+indicating that GitHub successfully contacted the EC2 webhook listener.
+
+Webhook activity can also be monitored using:
+
+```bash
+journalctl -u webhook -f
+```
+
+### Validating Requests Come From GitHub
+
+The webhook listener validates incoming requests using:
+
+```text
+X-Hub-Signature-256
+```
+
+and a shared secret configured in:
+
+```text
+deployment/hooks.json
+```
+
+Requests that do not provide a valid signature fail validation and do not execute the deployment script.
+
+Testing with curl resulted in:
+
+```text
+Hook rules were not satisfied.
+```
+
+demonstrating that unauthorized requests do not trigger deployment actions.
+
+---
+
+## GitHub Webhooks vs DockerHub Webhooks
+
+### Event Generation
+
+GitHub Webhooks send payloads when repository events occur.
+
+For this project, the selected event was:
+
+```text
+workflow_run.completed
+```
+
+which occurs after the GitHub Actions workflow finishes.
+
+DockerHub Webhooks send payloads when repository image events occur, such as image pushes.
+
+### Sender Verification
+
+GitHub Webhooks support validation using:
+
+```text
+X-Hub-Signature-256
+```
+
+and a shared secret.
+
+DockerHub Webhooks can notify external systems when images are updated, but GitHub provides stronger integration with GitHub Actions workflows.
+
+### Preferred Solution
+
+I would use GitHub Webhooks for this deployment because they integrate directly with the CI/CD pipeline and can be configured to trigger only after successful workflow completion.
+
+This ensures that deployments occur only after the latest image has been built and pushed to Docker Hub.

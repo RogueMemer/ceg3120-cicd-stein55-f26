@@ -24,4 +24,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: roguememer/aboutme-site:latest
+          tags: roguememer/ceg3120-cicd-stein55-f26:latest
